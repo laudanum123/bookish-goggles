@@ -1,0 +1,17 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "chainlit",
+            "type": "shell",
+            "command": "conda activate starling; if ($?) { chainlit run -wh ./chat.py}",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+        ]
+
+}
+
+        

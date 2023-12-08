@@ -1,38 +1,60 @@
 
+
 from playwright.async_api import async_playwright
+
 
 browser = None
 
+
 async def setup_browser():
     """
+
     Set up and return a Playwright browser instance.
     """
     global browser
+
     if browser is None:
+
         playwright = await async_playwright().start()
+
         browser = await playwright.chromium.launch(headless=False)
 
-async def navigate_to_url(url):
+
+async def suche_artikel(item: str):
     """
-    Navigate to the specified URL using the provided browser instance.
+    Search for an item in a webstore.
 
     Parameters:
-    - url: The URL to navigate to.
+    - item: The item to search for.
     """
     global browser
+
     if browser is None:
         await setup_browser()
+
     page = await browser.new_page()
-    await page.goto(url)
-    print(await page.content()) 
+    await page.goto(f"https://momo.abo-kiste.com/web/main.php/shop/suche?suchtext={item}")
+
+    # Search for elements by CSS selector
+    elements = await page.query_selector_all(".produktListe_text")
+
+    inner_html_list = []
+    for element in elements:
+        inner_html = await element.inner_html()
+        inner_html_list.append(inner_html)
+        print(inner_html)
+
+    return elements
+
 
 
 list_of_tools = {
-    "navigate_to_url": {
-        "function": "navigate_to_url",
-        "description": "Navigate to the specified URL using the provided browser instance.",
-        "parameters": {
-            "url": "The URL to navigate to. Must include http:// or https://"
-        }
+
+    "suche_artikel": {
+        "function": "suche_artikel",
+        "beschreibung": "Suche nach einem Artikel in einem Webshop.",
+        "artikel": "artikel_name"
+
     },
+
 }
