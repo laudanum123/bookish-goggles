@@ -1,12 +1,8 @@
-from langchain.llms.huggingface_pipeline import HuggingFacePipeline
-from transformers import AutoTokenizer, TextIteratorStreamer
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers.string import StrOutputParser
 from langchain_core.runnables.config import RunnableConfig
 import tools
-import util
-
-import transformers
+from util import load_llama, get_token_count, clean_special_tokens, parse_json_from_string
 
 import chainlit as cl
 
@@ -19,56 +15,7 @@ GPT4 Correct User: You are a helpful AI assistent.
 
 
 # Load model and tokenizer
-@cl.cache
-def load_llama():
-    """
-    Load the LLaMA model and tokenizer.
-    Returns the HuggingFacePipeline object.
-    """
-    model_name = "berkeley-nest/Starling-LM-7B-alpha"
-    model_path = "../models"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=False)
-    pipeline = transformers.pipeline(
-        "text-generation",
-        model=model_path,
-        tokenizer=tokenizer,
-        trust_remote_code=True,
-        device_map="auto",
-        top_p=0.9,
-        max_length=8000,
-        do_sample=True,
-        num_return_sequences=1,
-        pad_token_id=tokenizer.pad_token_id,
-        eos_token_id=tokenizer.eos_token_id,
-        streamer=streamer
-    )
 
-    llm = HuggingFacePipeline(
-        pipeline=pipeline,
-        model_kwargs={"temperature": 1.2}
-    )
-    return llm
-
-def get_token_count(text):
-    """
-    Calculate the token count of the given text.
-    Args:
-        text (str): Input text.
-    Returns:
-        int: Number of tokens.
-    """
-    return len(model.pipeline.tokenizer.encode(text))
-
-def clean_special_tokens(text):
-    """
-    Remove special tokens from the given text.
-    Args:
-        text (str): Input text.
-    Returns:
-        str: Cleaned text.
-    """
-    return text.replace("<|end_of_turn|>", "")
 
 model = load_llama()
 
@@ -105,7 +52,7 @@ async def on_message(message: cl.Message):
     
     # Fill the template and get number of tokens
     filled_template = template.format(list_of_actions=tools.list_of_tools, question=conversation_string)
-    template_token_count = get_token_count(filled_template)
+    template_token_count = get_token_count(filled_template, model)
     
     # Remove parts of the conversation history until it fits into the model's max length
     while template_token_count > (max_length-(max_length/2)):
@@ -113,7 +60,7 @@ async def on_message(message: cl.Message):
         conversation_history.pop(0)
         conversation_string = "<|end_of_turn|>".join(conversation_history)
         filled_template = template.format(list_of_actions=tools.list_of_tools, question=conversation_string)
-        template_token_count = get_token_count(filled_template)
+        template_token_count = get_token_count(filled_template, model)
 
     print(filled_template)
 
@@ -125,7 +72,7 @@ async def on_message(message: cl.Message):
     ):
         await msg.stream_token(chunk)
     
-    json = util.parse_json_from_string(msg.content)
+    json = parse_json_from_string(msg.content)
     if json:
         await tools.suche_artikel(json['parameter'])
 
